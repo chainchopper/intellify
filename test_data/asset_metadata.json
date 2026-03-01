@@ -1,0 +1,42 @@
+{
+    "folder": null,
+    "files": [
+        {
+            "asset_type": "document",
+            "asset_id": "file_a6acf060",
+            "file_format": ".doc",
+            "category": "financial_reports",
+            "confidence_score": 0.95,
+            "file_path": "test_data/Finance/draft.doc"
+        },
+        {
+            "asset_type": "media",
+            "asset_id": "file_6a3b5039",
+            "file_format": ".jpg",
+            "category": "marketing_assets",
+            "confidence_score": 0.95,
+            "file_path": "test_data/Finance/meme.jpg"
+        },
+        {
+            "asset_type": "document",
+            "asset_id": "file_34d7618e",
+            "file_format": ".txt",
+            "category": "marketing_assets",
+            "confidence_score": 0.95,
+            "file_path": "test_data/Finance/notes.txt"
+        },
+        {
+            "asset_type": "document",
+            "asset_id": "file_ddea0af4",
+            "file_format": ".pdf",
+            "category": "financial_reports",
+            "confidence_score": 0.95,
+            "file_path": "test_data/Finance/report_2023.pdf"
+        }
+    ],
+    "summary": {
+        "total_files": 5,
+        "valid_assets_count": 4,
+        "invalid_assets_count": 1
+    }
+}
