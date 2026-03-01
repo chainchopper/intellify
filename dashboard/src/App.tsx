@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import './index.css';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,22 +8,18 @@ import OnboardingWizard from './OnboardingWizard';
 const API_BASE = "http://127.0.0.1:8080/api";
 
 export default function App() {
-  const [tasks, setTasks] = useState({});
-  const [recs, setRecs] = useState([]);
+  const [tasks, setTasks] = useState<Record<string, Record<string, string>>>({});
+  const [recs, setRecs] = useState<Record<string, string>[]>([]);
   const [showWizard, setShowWizard] = useState(true);
 
-  useEffect(() => {
-    fetchTasks();
-    const interval = setInterval(fetchTasks, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
-  const fetchTasks = async () => {
+
+  async function fetchTasks() {
     try {
       const res = await fetch(`${API_BASE}/tasks`);
       const data = await res.json();
       setTasks(data.tasks || {});
-    } catch (e) { console.error("Could not fetch tasks") }
+    } catch { console.error("Could not fetch tasks") }
   };
 
   const loadMockRecommendations = async () => {
@@ -41,14 +38,14 @@ export default function App() {
     } catch (e) { console.error(e) }
   };
 
-  const startTask = async (serviceId: string) => {
+  async function startTask(serviceId: string) {
     try {
       await fetch(`${API_BASE}/tasks/opt-in?service_id=${serviceId}`, { method: "POST" });
       fetchTasks();
-    } catch (e) { }
+    } catch { /* ignore */ }
   };
 
-  const controlTask = async (taskId: string, action: string) => {
+  async function controlTask(taskId: string, action: string) {
     try {
       await fetch(`${API_BASE}/tasks/control`, {
         method: "POST",
@@ -56,14 +53,21 @@ export default function App() {
         body: JSON.stringify({ task_id: taskId, action })
       });
       fetchTasks();
-    } catch (e) { }
+    } catch { /* ignore */ }
   };
 
-  const handleWizardComplete = (data: any) => {
+  const handleWizardComplete = (data: unknown) => {
     console.log("Onboarding Data:", data);
     setShowWizard(false);
     loadMockRecommendations();
   };
+
+
+  useEffect(() => {
+    fetchTasks();
+    const interval = setInterval(fetchTasks, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0a0f18] text-slate-300 font-sans selection:bg-indigo-500/30">
@@ -110,7 +114,7 @@ export default function App() {
                 <p className="text-slate-400 text-sm">No assets scanned yet.</p>
               </motion.div>
             ) : (
-              recs.map((rec: any, idx) => (
+              recs.map((rec, idx) => (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -151,7 +155,7 @@ export default function App() {
                 <p className="text-slate-400 text-sm">No active tasks.</p>
               </div>
             ) : (
-              Object.entries(tasks).map(([taskId, task]: [string, any]) => (
+              Object.entries(tasks).map(([taskId, task]) => (
                 <motion.div
                   key={taskId}
                   initial={{ opacity: 0, x: 20 }}

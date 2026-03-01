@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Menu, X, ArrowRight } from 'lucide-react';
 
@@ -17,8 +17,8 @@ const Navbar = () => {
     return (
         <header
             className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled
-                    ? 'bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5 py-4'
-                    : 'bg-transparent py-6'
+                ? 'bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5 py-4'
+                : 'bg-transparent py-6'
                 }`}
         >
             <div className="container mx-auto px-6 md:px-12 flex justify-between items-center">

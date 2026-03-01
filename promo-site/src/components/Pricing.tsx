@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 
@@ -100,8 +100,8 @@ const Pricing = () => {
 
                             <button
                                 className={`w-full py-4 rounded-xl font-medium transition-all ${tier.popular
-                                        ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                                        : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
+                                    ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                    : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
                                     }`}
                             >
                                 {tier.buttonText}

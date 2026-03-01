@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, HardDrive, Network, FileSearch, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 interface Props {
-    onComplete: (data: any) => void;
+    onComplete: (data: unknown) => void;
 }
 
 export default function OnboardingWizard({ onComplete }: Props) {
