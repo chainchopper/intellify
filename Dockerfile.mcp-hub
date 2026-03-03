@@ -1,0 +1,38 @@
+FROM python:3.12-slim
+
+LABEL maintainer="Fanalogy" \
+    description="Intellify MCP Hub — FastAPI orchestration service"
+
+WORKDIR /app
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for layer cache
+COPY core/mcp_hub/requirements.txt     /app/core/mcp_hub/requirements.txt
+COPY agents/requirements.txt           /app/agents/requirements.txt
+COPY requirements.txt                  /app/requirements.txt
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /app/core/mcp_hub/requirements.txt \
+    && pip install --no-cache-dir -r /app/agents/requirements.txt \
+    && pip install --no-cache-dir -r /app/requirements.txt
+
+# Copy source
+COPY core/mcp_hub/ /app/core/mcp_hub/
+COPY agents/       /app/agents/
+COPY schemas/      /app/schemas/
+
+# Data dir for SQLite DB and ingestion output
+RUN mkdir -p /app/data/ingested
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+CMD ["python", "-m", "uvicorn", "core.mcp_hub.server:app", \
+    "--host", "0.0.0.0", "--port", "8080"]

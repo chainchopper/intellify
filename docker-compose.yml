@@ -1,0 +1,61 @@
+version: "3.9"
+
+# ============================================================
+#  Intellify Enterprise Hub — Docker Compose
+# ============================================================
+#
+#  Services:
+#    mcp-hub    — Python FastAPI orchestration hub (port 8080)
+#    dashboard  — Vite/React dashboard UI       (port 5175)
+#
+#  Usage:
+#    docker compose up --build          # first run
+#    docker compose up                  # subsequent runs
+#    docker compose down                # stop & remove containers
+# ============================================================
+
+services:
+
+  # ──────────────────────────────────────────────────────────
+  # MCP Hub — FastAPI / uvicorn
+  # ──────────────────────────────────────────────────────────
+  mcp-hub:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp-hub
+    container_name: intellify-mcp-hub
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./core/mcp_hub:/app/core/mcp_hub
+      - ./agents:/app/agents
+      - ./data:/app/data          # persisted scan outputs & SQLite DB
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ──────────────────────────────────────────────────────────
+  # Dashboard — Node / Vite dev server
+  # ──────────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile.dashboard
+    container_name: intellify-dashboard
+    env_file: .env
+    ports:
+      - "5175:5175"
+    environment:
+      - VITE_MCP_HUB_URL=http://mcp-hub:8080
+    depends_on:
+      mcp-hub:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  data:
+    driver: local

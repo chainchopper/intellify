@@ -12,7 +12,7 @@ COPY schemas/ /app/schemas/
 COPY agents/ /app/agents/
 
 # Install python dependencies
-RUN pip install --no-cache-dir -r /appagents/requirements.txt
+RUN pip install --no-cache-dir -r /app/agents/requirements.txt
 
 # Specify the entrypoint for the local scanner
 ENTRYPOINT ["python", "/app/agents/local_scanner.py"]
