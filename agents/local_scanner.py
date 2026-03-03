@@ -3,11 +3,66 @@ import sys
 import json
 import uuid
 from typing import List
+from pathlib import Path
 
 # Add schemas to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'schemas')))
 from metadata_schemas import FileAsset, FolderAsset
 from pydantic import ValidationError
+
+# ---------------------------------------------------------------------------
+# Category rules shared with ingestion_service.py
+# ---------------------------------------------------------------------------
+
+_CATEGORY_RULES = [
+    ({"finance", "financial", "report", "budget", "invoice", "revenue", "profit"}, "financial_reports"),
+    ({"hr", "human_resource", "employee", "memo", "onboard", "policy"},            "internal_memo"),
+    ({"market", "campaign", "brand", "promo", "ad", "advertisement"},              "marketing_assets"),
+    ({"audio", "podcast", "voice", "speech", "music"},                             "audio_samples"),
+    ({"video", "recording", "footage", "clip"},                                    "video_media"),
+    ({"data", "dataset", "train", "validation", "label"},                          "training_data"),
+    ({"image", "photo", "picture", "scan", "diagram"},                             "images"),
+]
+
+_TYPE_DEFAULTS = {
+    "document": "internal_memo",
+    "media":    "images",
+    "audio":    "audio_samples",
+    "video":    "video_media",
+}
+
+ALLOWED_EXTS = {
+    ".pdf": "document", ".doc": "document", ".docx": "document",
+    ".txt": "document", ".md":  "document", ".csv":  "document",
+    ".jpg": "media",    ".jpeg": "media",   ".png": "media",
+    ".mp4": "video",    ".mov": "video",
+    ".mp3": "audio",    ".wav": "audio",    ".flac": "audio",
+}
+
+
+def _infer_category(file_path: str, asset_type: str) -> tuple:
+    """Return (category, confidence_score) using path + filename heuristics."""
+    tokens = set(
+        file_path.lower()
+        .replace("\\", "/").replace("-", "_").replace(".", "_")
+        .split("/")
+    )
+    tokens |= set(Path(file_path).stem.lower().replace("-", "_").split("_"))
+
+    best_cat, best_score = None, 0.0
+    for keywords, category in _CATEGORY_RULES:
+        overlap = len(keywords & tokens)
+        if overlap > 0:
+            score = min(0.95, 0.75 + 0.05 * overlap)
+            if score > best_score:
+                best_score, best_cat = score, category
+
+    if best_cat is None:
+        best_cat   = _TYPE_DEFAULTS.get(asset_type, "internal_memo")
+        best_score = 0.80
+
+    return best_cat, round(best_score, 4)
+
 
 def scan_directory(directory_path: str) -> dict:
     if not os.path.exists(directory_path):
@@ -15,89 +70,77 @@ def scan_directory(directory_path: str) -> dict:
         sys.exit(1)
 
     print(f"Scanning directory: {directory_path}")
-    
-    valid_assets = []
-    invalid_count = 0
 
-    allowed_exts = {".pdf", ".doc", ".docx", ".txt", ".jpg", ".png", ".mp4", ".mp3", ".wav"}
-    
-    file_count = 0
-    primary_cats = {"financial_reports": 0, "internal_memo": 0, "marketing_assets": 0, "audio_samples": 0}
+    valid_assets: List[dict] = []
+    invalid_count = 0
+    category_counts: dict = {}
 
     for root, _, files in os.walk(directory_path):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
-            if ext not in allowed_exts:
+            if ext not in ALLOWED_EXTS:
                 invalid_count += 1
                 continue
 
-            # extremely basic mock categorization based on extension/filename
-            category = "marketing_assets"
-            if ext in {".pdf", ".doc", ".docx"}:
-                category = "financial_reports" if "finance" in root.lower() or "report" in file.lower() else "internal_memo"
-            elif ext in {".mp3", ".wav"}:
-                category = "audio_samples"
-            
-            primary_cats[category] += 1
-            file_count += 1
+            full_path  = os.path.join(root, file)
+            asset_type = ALLOWED_EXTS[ext]
+            category, confidence = _infer_category(full_path, asset_type)
 
-            # Mock confidence score (usually would come from a local ML classifier)
-            confidence = 0.95
+            category_counts[category] = category_counts.get(category, 0) + 1
 
             try:
                 asset = FileAsset(
                     asset_id=f"file_{uuid.uuid4().hex[:8]}",
-                    asset_type="document" if ext in {".pdf", ".doc", ".docx", ".txt"} else "media" if ext in {".jpg", ".png", ".mp4"} else "audio",
+                    asset_type=asset_type,
                     file_format=ext,
                     category=category,
                     confidence_score=confidence,
-                    file_path=os.path.join(root, file).replace("\\", "/")
+                    file_path=full_path.replace("\\", "/"),
                 )
-                valid_assets.append(asset.dict())
+                valid_assets.append(asset.model_dump())
             except ValidationError as e:
                 print(f"Validation failed for {file}: {e}")
                 invalid_count += 1
 
-    # Determine primary category for folder
-    primary_category = max(primary_cats, key=primary_cats.get) if file_count > 0 else "internal_memo"
+    primary_category = (
+        max(category_counts, key=category_counts.get) if category_counts else "internal_memo"
+    )
 
     folder_metadata = None
-    if file_count >= 5:
+    if len(valid_assets) >= 5:
         try:
             folder_asset = FolderAsset(
                 folder_id=f"folder_{uuid.uuid4().hex[:8]}",
                 asset_type="folder",
-                asset_count=file_count,
+                asset_count=len(valid_assets),
                 primary_category=primary_category,
-                folder_path=directory_path.replace("\\", "/")
+                folder_path=directory_path.replace("\\", "/"),
             )
-            folder_metadata = folder_asset.dict()
+            folder_metadata = folder_asset.model_dump()
         except ValidationError as e:
             print(f"Folder validation failed: {e}")
 
     output_payload = {
-        "folder": folder_metadata,
-        "files": valid_assets,
+        "folder":          folder_metadata,
+        "files":           valid_assets,
+        "category_counts": category_counts,
         "summary": {
-            "total_files": file_count + invalid_count,
-            "valid_assets_count": len(valid_assets),
-            "invalid_assets_count": invalid_count
-        }
+            "total_files":         len(valid_assets) + invalid_count,
+            "valid_assets_count":  len(valid_assets),
+            "invalid_assets_count": invalid_count,
+        },
     }
 
     out_file = os.path.join(directory_path, "asset_metadata.json")
     with open(out_file, "w") as f:
         json.dump(output_payload, f, indent=4)
-        
-    print(f"Scan complete. Found {len(valid_assets)} valid files.")
-    print(f"Metadata exported to {out_file}")
-    
+
+    print(f"Scan complete. {len(valid_assets)} valid assets. Metadata → {out_file}")
     return output_payload
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python local_scanner.py <path_to_scan>")
         sys.exit(1)
-    
-    target_dir = sys.argv[1]
-    scan_directory(target_dir)
+    scan_directory(sys.argv[1])
