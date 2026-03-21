@@ -25,7 +25,7 @@ if not exist "%~dp0dashboard\node_modules" (
 :: ─────────────────────────────────────────────
 echo Starting MCP Hub on http://localhost:8080 ...
 start "Intellify MCP Hub" cmd /k ^
-    "cd /d "%~dp0core\mcp_hub" && "%~dp0.venv\Scripts\python.exe" -m uvicorn server:app --host 0.0.0.0 --port 8080 --reload"
+    cd /d "%~dp0core\mcp_hub" ^&^& "%~dp0.venv\Scripts\python.exe" -m uvicorn server:app --host 0.0.0.0 --port 8080 --reload
 
 :: Brief pause so the hub has a head start before the UI tries to talk to it
 timeout /t 3 /nobreak >nul
@@ -35,7 +35,7 @@ timeout /t 3 /nobreak >nul
 :: ─────────────────────────────────────────────
 echo Starting Dashboard on http://localhost:5175 ...
 start "Intellify Dashboard" cmd /k ^
-    "cd /d "%~dp0dashboard" && npm run dev -- --host --port 5175"
+    cd /d "%~dp0dashboard" ^&^& npm run dev -- --host --port 5175
 
 echo.
 echo ============================================
